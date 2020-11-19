@@ -59,7 +59,7 @@ const parse_argument = () => {
 
 const login_network = async () => {
   try {
-    let result = await axios.post("http://192.168.9.8/include/auth_action.php", qs.stringify({
+    await axios.post("http://192.168.9.8/include/auth_action.php", qs.stringify({
       action: 'login',
       username: config.username,
       password: config.password,
@@ -71,7 +71,6 @@ const login_network = async () => {
       domain: '@uestc',
       ajax: '1'
     }));
-    console.table(result.data);
   } catch (err) {
     console.table(err);
   }
