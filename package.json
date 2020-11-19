@@ -1,0 +1,16 @@
+{
+  "name": "uestc-ddns",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^14.14.8"
+  },
+  "dependencies": {
+    "axios": "^0.21.0"
+  },
+  "scripts": {
+    "run": "ts-node src/index.ts",
+    "build": "tsc"
+  }
+}
