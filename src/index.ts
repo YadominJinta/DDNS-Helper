@@ -22,7 +22,7 @@ uestc-ddns: A script help you auto login and ddns in UESTC.
 
 Arguments:
 --token \t\t Your cloudflare token
---zone \t\t Your cloudflare zone id
+--zone \t\t\t Your cloudflare zone id
 --domain \t\t Your domain
 --ipv6 \t\t\t Enable ipv6 support, default disabled
 --username \t\t Your username to login the school network
@@ -82,7 +82,6 @@ const check_network = async (time: number): Promise<boolean> => {
   else {
     try {
       let result = await axios.get('https://www.baidu.com', { timeout: 500 });
-      console.table(result.data)
       return true;
     } catch (err) {
       console.table(err);
@@ -96,11 +95,11 @@ const check_network = async (time: number): Promise<boolean> => {
 const getLocalAddress = async (): Promise<Addresses> => {
   try {
     let result = await axios.get('https://api-ipv4.ip.sb/ip');
-    const ipv4 = result.data as string;
+    const ipv4 = (result.data as string).replace('\n', '');
 
     if (enable_ipv6) {
       result = await axios.get('https://api-ipv6.ip.sb/ip');
-      const ipv6 = result.data as string;
+      const ipv6 = (result.data as string).replace('\n', '');
 
       return {
         ipv4: ipv4,
@@ -135,9 +134,9 @@ const getDNSAddress = async (): Promise<Addresses> => {
 
       result.data.result.forEach(record => {
         if (record.type === 'A') {
-          ipv4 = record.content.replace('\n', '');
+          ipv4 = record.content;
         } else if (record.type === 'AAAA') {
-          ipv6 = record.content.replace('\n', '');
+          ipv6 = record.content;
         }
       });
 
@@ -239,6 +238,8 @@ const main = async () => {
     const dnsAddress = await getDNSAddress();
     if (localAddress !== dnsAddress) {
       await updateDNS(localAddress);
+    } else {
+      console.log('No problem');
     }
   }
   return;
