@@ -236,7 +236,7 @@ const main = async () => {
   if (await check_network(0)) {
     const localAddress = await getLocalAddress();
     const dnsAddress = await getDNSAddress();
-    if (localAddress !== dnsAddress) {
+    if (Object.is(localAddress, dnsAddress)) {
       await updateDNS(localAddress);
     } else {
       console.log('No problem');
