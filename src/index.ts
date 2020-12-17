@@ -81,7 +81,7 @@ const check_network = async (time: number): Promise<boolean> => {
     return false;
   else {
     try {
-      await axios.get('https://www.baidu.com', { timeout: 500 });
+      await axios.get('https://www.baidu.com', { timeout: 1000 });
       return true;
     } catch (err) {
       console.table(err);
