@@ -1,6 +1,5 @@
 // @deno-types="https://cdn.jsdelivr.net/npm/ky@0.25.1/index.d.ts";
 import ky from "https://cdn.jsdelivr.net/npm/ky@0.25.1/index.js";
-import { Arguments } from 'https://deno.land/x/yargs/deno-types.ts'
 import { GetDNSRecords, PutDNSRecords, Addresses } from './interfaces.ts';
 
 const config: { [index: string]: string } = {
@@ -85,7 +84,7 @@ const checkNetwork = async (time: number): Promise<boolean> => {
     return false;
   else {
     try {
-      await ky.get('https://www.baidu.com', { timeout: 1000 });
+      await ky.get('https://www.baidu.com', { timeout: 5000 });
       return true;
     } catch (err) {
       console.table(err);
