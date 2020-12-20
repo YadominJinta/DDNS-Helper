@@ -1,6 +1,7 @@
-import qs from 'querystring';
-import axios, { AxiosResponse } from 'axios';
-import { GetDNSRecords, PutDNSRecords, Addresses } from './interfaces';
+// @deno-types="https://cdn.jsdelivr.net/npm/ky@0.25.1/index.d.ts";
+import ky from "https://cdn.jsdelivr.net/npm/ky@0.25.1/index.js";
+import { Arguments } from 'https://deno.land/x/yargs/deno-types.ts'
+import { GetDNSRecords, PutDNSRecords, Addresses } from './interfaces.ts';
 
 const config: { [index: string]: string } = {
   token: '',
@@ -8,13 +9,34 @@ const config: { [index: string]: string } = {
   domain: '',
   username: '',
   password: '',
-  domain_id: ''
+  domainId: ''
 };
-let enable_ipv6 = false;
+let enableIpv6 = false;
 const Red = "\x1b[31m";
 const White = "\x1b[37m";
 
-const show_help = (missing: string) => {
+const parseArgument = () => {
+  if (Deno.args.indexOf('--help') !== -1) {
+    showHelp('')
+    Deno.exit(0)
+  }
+
+  if (Deno.args.indexOf('--ipv6') !== -1)
+    enableIpv6 = true;
+
+  const args = [
+    'token', 'zone', 'username', 'password', 'domain'
+  ];
+
+  args.forEach(arg => {
+    if (Deno.args.indexOf('--' + arg) !== -1)
+      config[arg] = Deno.args[Deno.args.indexOf('--' + arg) + 1];
+    else
+      showHelp(arg);
+  });
+}
+
+const showHelp = (missing: string) => {
   if (missing)
     console.error(Red, `You need to specify ${missing}`)
   console.log(White, `
@@ -30,36 +52,15 @@ Arguments:
 `)
 
   if (missing)
-    process.exit(1)
+    Deno.exit(1);
 
 }
 
-const parse_argument = () => {
-  process.argv;
 
-  if (process.argv.indexOf('--help') !== -1) {
-    show_help('')
-    process.exit(0)
-  }
 
-  if (process.argv.indexOf('--ipv6') !== -1)
-    enable_ipv6 = true;
-
-  const args = [
-    'token', 'zone', 'username', 'password', 'domain'
-  ];
-
-  args.forEach(arg => {
-    if (process.argv.indexOf('--' + arg) !== -1)
-      config[arg] = process.argv[process.argv.indexOf('--' + arg) + 1];
-    else
-      show_help(arg);
-  });
-}
-
-const login_network = async () => {
+const loginNetwork = async () => {
   try {
-    await axios.post("http://192.168.9.8/include/auth_action.php", qs.stringify({
+    const params = new URLSearchParams({
       action: 'login',
       username: config.username,
       password: config.password,
@@ -70,36 +71,39 @@ const login_network = async () => {
       save_me: '0',
       domain: '@uestc',
       ajax: '1'
-    }));
+    });
+    await ky.post("http://192.168.9.8/include/auth_action.php", {
+      body: params.toString()
+    });
   } catch (err) {
     console.table(err);
   }
 }
 
-const check_network = async (time: number): Promise<boolean> => {
+const checkNetwork = async (time: number): Promise<boolean> => {
   if (time >= 5)
     return false;
   else {
     try {
-      await axios.get('https://www.baidu.com', { timeout: 1000 });
+      await ky.get('https://www.baidu.com', { timeout: 1000 });
       return true;
     } catch (err) {
       console.table(err);
       console.log('Try login...');
-      await login_network()
-      return await check_network(time + 1);
+      await loginNetwork()
+      return await checkNetwork(time + 1);
     }
   }
 }
 
 const getLocalAddress = async (): Promise<Addresses> => {
   try {
-    let result = await axios.get('https://api-ipv4.ip.sb/ip');
-    const ipv4 = (result.data as string).replace('\n', '');
+    let result = await ky.get('https://api-ipv4.ip.sb/ip').text();
+    const ipv4 = result.replace('\n', '');
 
-    if (enable_ipv6) {
-      result = await axios.get('https://api-ipv6.ip.sb/ip');
-      const ipv6 = (result.data as string).replace('\n', '');
+    if (enableIpv6) {
+      result = await ky.get('https://api-ipv6.ip.sb/ip').text();
+      const ipv6 = result.replace('\n', '');
 
       return {
         ipv4: ipv4,
@@ -112,27 +116,27 @@ const getLocalAddress = async (): Promise<Addresses> => {
     }
   } catch (err) {
     console.table(err.message);
-    process.exit(1)
+    Deno.exit(1);
   }
 }
 
 const getDNSAddress = async (): Promise<Addresses> => {
   try {
-    let result: AxiosResponse<GetDNSRecords> = await axios.get(
+    const result = await ky.get(
       `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records`, {
-      params: {
+      searchParams: {
         name: config.domain
       },
       headers: {
         Authorization: `Bearer ${config.token}`
       }
-    });
+    }).json<GetDNSRecords>();
 
-    if (result.data.success) {
+    if (result.success) {
       let ipv4 = '';
       let ipv6 = '';
 
-      result.data.result.forEach(record => {
+      result.result.forEach(record => {
         if (record.type === 'A') {
           ipv4 = record.content;
         } else if (record.type === 'AAAA') {
@@ -140,7 +144,7 @@ const getDNSAddress = async (): Promise<Addresses> => {
         }
       });
 
-      return enable_ipv6 ?
+      return enableIpv6 ?
         {
           ipv4: ipv4,
           ipv6: ipv6
@@ -149,49 +153,48 @@ const getDNSAddress = async (): Promise<Addresses> => {
           ipv4: ipv4
         }
     } else {
-      console.table(result.data);
+      console.table(result);
       throw new Error("Can't get dns records");
     }
   } catch (err) {
     console.table(err.message);
-    process.exit(1);
+    Deno.exit(1);
   }
 }
 
 const updateDNS = async (localAddress: Addresses) => {
   try {
-    let records: AxiosResponse<GetDNSRecords> = await axios.get(
+    const records = await ky.get(
       `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records`, {
-      params: {
+      searchParams: {
         name: config.domain
       },
       headers: {
         Authorization: `Bearer ${config.token}`
       }
-    });
+    }).json<GetDNSRecords>();
 
-    await Promise.all(records.data.result.map(async (record) => {
+    await Promise.all(records.result.map(async (record) => {
       if (record.type === 'A') {
         try {
-          let result: AxiosResponse<PutDNSRecords> = await axios.put(
-            `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records/${record.id}`,
-            {
+          const result = await ky.put(
+            `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records/${record.id}`, {
+            headers: {
+              Authorization: `Bearer ${config.token}`
+            },
+            body: JSON.stringify({
               content: localAddress.ipv4,
               type: 'A',
               ttl: 120,
               name: config.domain,
               proxied: false
-            }, {
-            headers: {
-              Authorization: `Bearer ${config.token}`
-            }
-          }
-          );
-          if (result.data.success) {
+            }),
+          }).json<PutDNSRecords>();
+          if (result.success) {
             console.log("Update dns for ipv4 success");
           } else {
             console.error("Update dns for ipv4 failed");
-            console.table(result.data);
+            console.table(result);
           }
         } catch (err) {
           console.error("Update dns for ipv4 failed");
@@ -199,25 +202,25 @@ const updateDNS = async (localAddress: Addresses) => {
         }
       } else if(record.type === 'AAAA' && localAddress.ipv6) {
         try {
-          let result: AxiosResponse<PutDNSRecords> = await axios.put(
-            `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records/${record.id}`,
-            {
+          const result = await ky.put(
+            `https://api.cloudflare.com/client/v4/zones/${config.zone}/dns_records/${record.id}`, {
+            headers: {
+              Authorization: `Bearer ${config.token}`
+            },
+            body: JSON.stringify({
               content: localAddress.ipv6,
               type: 'AAAA',
               ttl: 120,
               name: config.domain,
               proxied: false
-            }, {
-            headers: {
-              Authorization: `Bearer ${config.token}`
-            }
-          }
-          );
-          if (result.data.success) {
+            })
+          }).json<PutDNSRecords>();
+
+          if (result.success) {
             console.log("Update dns for ipv6 success");
           } else {
             console.error("Update dns for ipv6 failed");
-            console.table(result.data);
+            console.table(result);
           }
         } catch (err) {
           console.error("Update dns for ipv6 failed");
@@ -231,9 +234,9 @@ const updateDNS = async (localAddress: Addresses) => {
 }
 
 const main = async () => {
-  parse_argument();
+  parseArgument();
 
-  if (await check_network(0)) {
+  if (await checkNetwork(0)) {
     const localAddress = await getLocalAddress();
     const dnsAddress = await getDNSAddress();
     if (Object.is(localAddress, dnsAddress)) {

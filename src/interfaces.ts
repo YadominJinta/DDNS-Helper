@@ -38,6 +38,6 @@ interface Addresses {
   ipv6?: string
 }
 
-export {
+export type {
   GetDNSRecords, Addresses, PutDNSRecords
 }
