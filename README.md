@@ -7,7 +7,7 @@ Including auto login and cloudflare ddns.
 ### Usage
 
 ``` shell script
-./ddns.js  --help
+deno run --allow-net https://cdn.jsdelivr.net/gh/YadominJinta/DDNS-Helper/src/index.ts
  
 uestc-ddns: A script help you auto login and ddns in UESTC.
 
